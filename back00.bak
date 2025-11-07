@@ -119,16 +119,7 @@ def head_check(url: str, timeout: float = 6.0) -> int:
 
 
 
-def generate_image_playwright(
-    url: str,
-    out_path: Path,
-    img_format: str = "png",
-    timeout: int = 30000,
-    page_selector: Optional[str] = None,
-    clip_padding: int = 0,
-    full_page: bool = False,
-    inject_css: bool = True,
-) -> bool:
+def generate_image_playwright(url: str, out_path: Path, img_format: str = "png", timeout: int = 30000, page_selector: Optional[str] = None, clip_padding: int = 0, full_page: bool = False) -> bool:
     """Render page to image using Playwright. img_format: 'png' or 'jpeg'."""
     try:
         from playwright.sync_api import sync_playwright
@@ -166,15 +157,14 @@ def generate_image_playwright(
             )
 
             # Inject CSS to ensure white page background fallback and proper image scaling
-            if inject_css:
-                page.add_style_tag(
-                    content=f"""
-                    html, body {{ margin: 0 !important; padding: 0 !important; background: #ffffff !important; }}
-                    img {{ max-width: 100% !important; height: auto !important; display: block !important; margin: 0 auto !important; }}
-                    .content-wrapper, main, article {{ width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: #ffffff !important; }}
-                    {selector} {{ background-position: center !important; background-repeat: no-repeat !important; background-size: contain !important; }}
-                    """
-                )
+            page.add_style_tag(
+                content=f"""
+                html, body {{ margin: 0 !important; padding: 0 !important; background: #ffffff !important; }}
+                img {{ max-width: 100% !important; height: auto !important; display: block !important; margin: 0 auto !important; }}
+                .content-wrapper, main, article {{ width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: #ffffff !important; }}
+                {selector} {{ background-position: center !important; background-repeat: no-repeat !important; background-size: contain !important; }}
+                """
+            )
 
             # If there is a background image on PageContainer3, ensure it is preserved and sized to cover the element
             clip = None
@@ -191,7 +181,7 @@ def generate_image_playwright(
                 if m:
                     bg_url = m.group(1)
 
-                if bg_url and inject_css:
+                if bg_url:
                     # Force the background-image explicitly and make it cover the element
                     page.add_style_tag(content=f"{selector} {{ background-image: url('{bg_url}') !important; background-size: cover !important; background-color: #ffffff !important; }}")
 
@@ -246,11 +236,6 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--clip-padding", type=int, default=0, help="Add padding in pixels around clipped content")
     p.add_argument("--img-fullpage", action="store_true", help="Capture full page instead of clipping to content")
     p.add_argument("--skip-existing", action="store_true", help="Skip image creation when output file already exists")
-    p.add_argument(
-        "--disable-css-injection",
-        action="store_true",
-        help="Do not inject fallback CSS before screenshotting (capture the page as-is)",
-    )
     args = p.parse_args(argv)
 
     url = args.url
@@ -323,8 +308,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                     img_format=args.img_format, 
                     page_selector=page_selector,
                     clip_padding=args.clip_padding,
-                    full_page=args.img_fullpage,
-                    inject_css=not args.disable_css_injection,
+                    full_page=args.img_fullpage
                 )
                 if img_success:
                     print(f"Wrote image: {img_path}")
