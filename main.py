@@ -204,6 +204,29 @@ def convert_images_to_pdf(image_dir: Path, pdf_dir: Path, merge_all: bool = Fals
         return False
 
 
+def clear_output_directories(dirs: list[Path]) -> None:
+    """Clear all PNG and PDF files from the specified directories."""
+    for directory in dirs:
+        if not directory.exists():
+            continue
+        
+        # Clear PNG files
+        for png_file in directory.glob("*.png"):
+            try:
+                png_file.unlink()
+                print(f"Deleted: {png_file}")
+            except Exception as e:
+                print(f"Failed to delete {png_file}: {e}", file=sys.stderr)
+        
+        # Clear PDF files
+        for pdf_file in directory.glob("*.pdf"):
+            try:
+                pdf_file.unlink()
+                print(f"Deleted: {pdf_file}")
+            except Exception as e:
+                print(f"Failed to delete {pdf_file}: {e}", file=sys.stderr)
+
+
 def generate_image_playwright(
     url: str,
     out_path: Path,
@@ -326,14 +349,24 @@ def main(argv: Optional[list[str]] = None) -> int:
     env_img_format = os.getenv("IMG_FORMAT", "png")
     
     # Processing flags
+    clear_output_at_start = os.getenv("CLEAR_OUTPUT_AT_START", "false").lower() == "true"
     enable_white_black = os.getenv("ENABLE_WHITE_BLACK", "false").lower() == "true"
     enable_pdf = os.getenv("ENABLE_PDF", "false").lower() == "true"
     enable_one_pdf = os.getenv("ENABLE_ONE_PDF", "false").lower() == "true"
     
     # Output directories
-    env_out_dir_raw = os.getenv("OUTPUT_DIR_RAW", "imgs_raw")
-    env_out_dir_processed = os.getenv("OUTPUT_DIR_PROCESSED", "imgs_processed")
-    env_out_dir_pdf = os.getenv("OUTPUT_DIR_PDF", "pdfs")
+    env_out_dir_raw = os.getenv("OUTPUT_DIR_RAW", "output/imgs_raw")
+    env_out_dir_processed = os.getenv("OUTPUT_DIR_PROCESSED", "output/imgs_processed")
+    env_out_dir_pdf = os.getenv("OUTPUT_DIR_PDF", "output/pdfs")
+    
+    # Clear output directories if enabled
+    if clear_output_at_start:
+        print("=== Clearing output directories ===")
+        clear_output_directories([
+            Path(env_out_dir_raw),
+            Path(env_out_dir_processed),
+            Path(env_out_dir_pdf)
+        ])
 
     # Construct default URL if possible
     default_url = None

@@ -59,9 +59,10 @@ You can configure default settings using a `.env` file to avoid typing long URLs
     COUNT=5
     
     # Processing options - enable advanced features
-    ENABLE_WHITE_BLACK=true  # Apply black-white transformation
-    ENABLE_PDF=true          # Generate PDFs from images
-    ENABLE_ONE_PDF=true      # Combine all PDFs into one file
+    CLEAR_OUTPUT_AT_START=true  # Clean output directories before starting
+    ENABLE_WHITE_BLACK=true     # Apply black-white transformation
+    ENABLE_PDF=true             # Generate PDFs from images
+    ENABLE_ONE_PDF=true         # Combine all PDFs into one file
     
     # Output directories
     OUTPUT_DIR_RAW=output/imgs_raw           # Raw downloaded images
