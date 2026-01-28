@@ -30,11 +30,22 @@ try:
 except ImportError:
     print("Warning: 'python-dotenv' not installed. Skipping .env loading.", file=sys.stderr)
 
-
 try:
     import requests
 except Exception:
     requests = None  # optional; only required for --check-head
+
+try:
+    from PIL import Image, ImageEnhance, ImageOps
+except ImportError:
+    Image = None
+    print("Warning: 'Pillow' not installed. Black-white processing will be disabled.", file=sys.stderr)
+
+try:
+    import img2pdf
+except ImportError:
+    img2pdf = None
+    print("Warning: 'img2pdf' not installed. PDF generation will be disabled.", file=sys.stderr)
 
 
 def replace_last_number(url: str, n: int, width: Optional[int] = None) -> str:
@@ -119,6 +130,78 @@ def head_check(url: str, timeout: float = 6.0) -> int:
             return r.status_code
         except Exception:
             return 0
+
+
+def apply_white_black_effect(input_path: Path, output_path: Path) -> bool:
+    """Apply Photoshop-like black & white effect: brightness/contrast adjustment + grayscale.
+    
+    Steps:
+    1. Reduce brightness by ~30% (Photoshop -57)
+    2. Increase contrast by ~60% (Photoshop 65)
+    3. Convert to grayscale
+    """
+    if Image is None:
+        print("Pillow not available, skipping black-white processing.", file=sys.stderr)
+        return False
+    
+    try:
+        with Image.open(input_path) as img:
+            # Convert to RGB if needed (handles RGBA, P mode, etc.)
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            
+            # Step 1: Apply brightness reduction (~30% darker)
+            enhancer_b = ImageEnhance.Brightness(img)
+            img = enhancer_b.enhance(0.7)
+            
+            # Step 2: Apply contrast boost (~60% increase)
+            enhancer_c = ImageEnhance.Contrast(img)
+            img = enhancer_c.enhance(1.6)
+            
+            # Step 3: Convert to grayscale
+            img = ImageOps.grayscale(img)
+            
+            # Save as PNG
+            img.save(output_path, "PNG", compress_level=6)
+        return True
+    except Exception as e:
+        print(f"Black-white processing error for {input_path}: {e}", file=sys.stderr)
+        return False
+
+
+def convert_images_to_pdf(image_dir: Path, pdf_dir: Path, merge_all: bool = False, output_name: str = "combined.pdf") -> bool:
+    """Convert images to PDFs. Optionally merge all into one PDF."""
+    if img2pdf is None:
+        print("img2pdf not available, skipping PDF generation.", file=sys.stderr)
+        return False
+    
+    try:
+        pdf_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Get all PNG images sorted by filename
+        images = sorted(image_dir.glob("*.png"))
+        if not images:
+            print(f"No images found in {image_dir}", file=sys.stderr)
+            return False
+        
+        if merge_all:
+            # Combine all images into a single PDF
+            output_path = pdf_dir / output_name
+            with open(output_path, "wb") as f:
+                f.write(img2pdf.convert([str(img) for img in images]))
+            print(f"Created combined PDF: {output_path}")
+        else:
+            # Create individual PDFs
+            for img_path in images:
+                pdf_path = pdf_dir / f"{img_path.stem}.pdf"
+                with open(pdf_path, "wb") as f:
+                    f.write(img2pdf.convert(str(img_path)))
+                print(f"Created PDF: {pdf_path}")
+        
+        return True
+    except Exception as e:
+        print(f"PDF generation error: {e}", file=sys.stderr)
+        return False
 
 
 def generate_image_playwright(
@@ -240,8 +323,17 @@ def main(argv: Optional[list[str]] = None) -> int:
     env_start = os.getenv("START_PAGE")
     env_end = os.getenv("END_PAGE")
     env_count = os.getenv("COUNT")
-    env_out_dir = os.getenv("OUTPUT_DIR", "imgs")
     env_img_format = os.getenv("IMG_FORMAT", "png")
+    
+    # Processing flags
+    enable_white_black = os.getenv("ENABLE_WHITE_BLACK", "false").lower() == "true"
+    enable_pdf = os.getenv("ENABLE_PDF", "false").lower() == "true"
+    enable_one_pdf = os.getenv("ENABLE_ONE_PDF", "false").lower() == "true"
+    
+    # Output directories
+    env_out_dir_raw = os.getenv("OUTPUT_DIR_RAW", "imgs_raw")
+    env_out_dir_processed = os.getenv("OUTPUT_DIR_PROCESSED", "imgs_processed")
+    env_out_dir_pdf = os.getenv("OUTPUT_DIR_PDF", "pdfs")
 
     # Construct default URL if possible
     default_url = None
@@ -267,7 +359,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--print-only", action="store_true", help="Only print URLs (default)")
     p.add_argument("--check-head", action="store_true", help="Perform HEAD request and print status codes (requires requests)")
     p.add_argument("--limit", "-l", type=int, help="Stop early after this many URLs printed/generated")
-    p.add_argument("--out-dir", type=str, default=env_out_dir, help="Output directory for generated images")
+    p.add_argument("--out-dir", type=str, default=env_out_dir_raw, help="Output directory for generated images")
     p.add_argument("--img-format", type=str, default=env_img_format, choices=["png","jpeg"], help="Image format (PNG or JPEG)")
     p.add_argument("--img-prefix", type=str, default="page", help="Filename prefix for generated images")
     p.add_argument("--clip-padding", type=int, default=0, help="Add padding in pixels around clipped content")
@@ -371,6 +463,39 @@ def main(argv: Optional[list[str]] = None) -> int:
         printed += 1
         if args.limit and printed >= args.limit:
             break
+
+    # === POST-PROCESSING PIPELINE ===
+    # After downloading all images, apply optional transformations
+    
+    if not args.print_only:
+        # Determine source directory for processing
+        source_dir = Path(args.out_dir)
+        
+        # Step 1: Apply black-white transformation if enabled
+        if enable_white_black:
+            print("\n=== Applying black-white transformation ===")
+            processed_dir = Path(env_out_dir_processed)
+            processed_dir.mkdir(parents=True, exist_ok=True)
+            
+            raw_images = sorted(source_dir.glob(f"*.{args.img_format}"))
+            for img_path in raw_images:
+                output_path = processed_dir / img_path.name
+                if apply_white_black_effect(img_path, output_path):
+                    print(f"Processed: {output_path}")
+            
+            # Update source for next step
+            source_dir = processed_dir
+        
+        # Step 2: Generate PDFs if enabled
+        if enable_pdf:
+            print("\n=== Generating PDFs ===")
+            pdf_dir = Path(env_out_dir_pdf)
+            convert_images_to_pdf(
+                image_dir=source_dir,
+                pdf_dir=pdf_dir,
+                merge_all=enable_one_pdf,
+                output_name="combined.pdf"
+            )
 
     return 0
 

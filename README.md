@@ -48,7 +48,7 @@ This project uses `uv` for dependency management.
 
 You can configure default settings using a `.env` file to avoid typing long URLs every time.
 
-1.  Create a `.env` file in the project root (see `.env.example` or below).
+1.  Create a `.env` file in the project root (see `.env.template` or below).
 2.  Define your variables:
 
     ```ini
@@ -57,8 +57,34 @@ You can configure default settings using a `.env` file to avoid typing long URLs
     DEFAULT_GRADE=gradek
     START_PAGE=1
     COUNT=5
-    # OUTPUT_DIR=imgs
+    
+    # Processing options - enable advanced features
+    ENABLE_WHITE_BLACK=true  # Apply black-white transformation
+    ENABLE_PDF=true          # Generate PDFs from images
+    ENABLE_ONE_PDF=true      # Combine all PDFs into one file
+    
+    # Output directories
+    OUTPUT_DIR_RAW=output/imgs_raw           # Raw downloaded images
+    OUTPUT_DIR_PROCESSED=output/imgs_processed  # Processed (B&W) images
+    OUTPUT_DIR_PDF=output/pdfs               # PDF output
     ```
+
+## 🎨 Processing Pipeline
+
+The script supports a powerful multi-stage processing pipeline:
+
+1.  **Image Download**: Downloads pages as PNG images to `OUTPUT_DIR_RAW`
+2.  **Black-White Transformation** (optional): Applies Photoshop-like effects:
+    -   Brightness reduction (~30%)
+    -   Contrast boost (~60%)
+    -   Grayscale conversion
+    -   Outputs to `OUTPUT_DIR_PROCESSED`
+3.  **PDF Generation** (optional): Converts images to PDF format
+    -   Individual PDFs: One PDF per image
+    -   Combined PDF: All images merged into a single `combined.pdf`
+    -   Outputs to `OUTPUT_DIR_PDF`
+
+Enable/disable any stage using the `.env` configuration flags.
 
 ## 🚀 Usage
 
