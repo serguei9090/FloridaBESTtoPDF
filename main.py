@@ -352,7 +352,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     clear_output_at_start = os.getenv("CLEAR_OUTPUT_AT_START", "false").lower() == "true"
     enable_white_black = os.getenv("ENABLE_WHITE_BLACK", "false").lower() == "true"
     enable_pdf = os.getenv("ENABLE_PDF", "false").lower() == "true"
+    enable_color_pdf = os.getenv("ENABLE_COLOR_PDF", "false").lower() == "true"
     enable_one_pdf = os.getenv("ENABLE_ONE_PDF", "false").lower() == "true"
+    
+    # PDF naming
+    pdf_name = os.getenv("PDF_NAME", "combined")
     
     # Output directories
     env_out_dir_raw = os.getenv("OUTPUT_DIR_RAW", "output/imgs_raw")
@@ -515,19 +519,40 @@ def main(argv: Optional[list[str]] = None) -> int:
                 output_path = processed_dir / img_path.name
                 if apply_white_black_effect(img_path, output_path):
                     print(f"Processed: {output_path}")
-            
-            # Update source for next step
-            source_dir = processed_dir
         
-        # Step 2: Generate PDFs if enabled
-        if enable_pdf:
-            print("\n=== Generating PDFs ===")
-            pdf_dir = Path(env_out_dir_pdf)
+        # Step 2: Generate PDFs
+        pdf_dir = Path(env_out_dir_pdf)
+        
+        # Generate color PDF if enabled
+        if enable_color_pdf:
+            print("\n=== Generating Color PDF ===")
+            color_pdf_name = f"{pdf_name}_color.pdf" if enable_one_pdf else None
             convert_images_to_pdf(
-                image_dir=source_dir,
+                image_dir=Path(args.out_dir),  # Use raw images
                 pdf_dir=pdf_dir,
                 merge_all=enable_one_pdf,
-                output_name="combined.pdf"
+                output_name=color_pdf_name or "combined_color.pdf"
+            )
+        
+        # Generate B&W PDF if enabled
+        if enable_pdf and enable_white_black:
+            print("\n=== Generating Black-White PDF ===")
+            bw_pdf_name = f"{pdf_name}_bw.pdf" if enable_one_pdf else None
+            convert_images_to_pdf(
+                image_dir=Path(env_out_dir_processed),  # Use processed images
+                pdf_dir=pdf_dir,
+                merge_all=enable_one_pdf,
+                output_name=bw_pdf_name or "combined_bw.pdf"
+            )
+        elif enable_pdf and not enable_white_black:
+            # If only PDF enabled without B&W processing, use raw images
+            print("\n=== Generating PDF ===")
+            pdf_filename = f"{pdf_name}.pdf" if enable_one_pdf else None
+            convert_images_to_pdf(
+                image_dir=Path(args.out_dir),
+                pdf_dir=pdf_dir,
+                merge_all=enable_one_pdf,
+                output_name=pdf_filename or "combined.pdf"
             )
 
     return 0

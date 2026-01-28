@@ -61,14 +61,24 @@ You can configure default settings using a `.env` file to avoid typing long URLs
     # Processing options - enable advanced features
     CLEAR_OUTPUT_AT_START=true  # Clean output directories before starting
     ENABLE_WHITE_BLACK=true     # Apply black-white transformation
-    ENABLE_PDF=true             # Generate PDFs from images
-    ENABLE_ONE_PDF=true         # Combine all PDFs into one file
+    ENABLE_PDF=true             # Generate B&W PDF (requires ENABLE_WHITE_BLACK)
+    ENABLE_COLOR_PDF=true       # Generate color PDF from raw images
+    ENABLE_ONE_PDF=true         # Combine all images into one PDF
+    
+    # PDF naming (used when ENABLE_ONE_PDF=true)
+    PDF_NAME=grade1_book        # Base name for PDF files
     
     # Output directories
     OUTPUT_DIR_RAW=output/imgs_raw           # Raw downloaded images
     OUTPUT_DIR_PROCESSED=output/imgs_processed  # Processed (B&W) images
     OUTPUT_DIR_PDF=output/pdfs               # PDF output
     ```
+
+**PDF Naming:**
+- When both `ENABLE_PDF` and `ENABLE_COLOR_PDF` are true, two PDFs are generated:
+  - `{PDF_NAME}_color.pdf` - Color version from raw images
+  - `{PDF_NAME}_bw.pdf` - Black & white version from processed images
+- Individual PDFs (when `ENABLE_ONE_PDF=false`) use default naming
 
 ## 🎨 Processing Pipeline
 
@@ -81,8 +91,9 @@ The script supports a powerful multi-stage processing pipeline:
     -   Grayscale conversion
     -   Outputs to `OUTPUT_DIR_PROCESSED`
 3.  **PDF Generation** (optional): Converts images to PDF format
-    -   Individual PDFs: One PDF per image
-    -   Combined PDF: All images merged into a single `combined.pdf`
+    -   **Color PDF** (`ENABLE_COLOR_PDF`): Generate PDF from raw images
+    -   **Black-White PDF** (`ENABLE_PDF` + `ENABLE_WHITE_BLACK`): Generate PDF from processed images
+    -   **Merged PDFs** (`ENABLE_ONE_PDF`): Combine all images into single PDFs with custom names
     -   Outputs to `OUTPUT_DIR_PDF`
 
 Enable/disable any stage using the `.env` configuration flags.
