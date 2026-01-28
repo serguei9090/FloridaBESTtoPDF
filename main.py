@@ -1,4 +1,3 @@
-# empty
 """
 URL page iterator utility
 
@@ -21,15 +20,21 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import os
+from pathlib import Path
 from typing import Iterator, Optional
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    print("Warning: 'python-dotenv' not installed. Skipping .env loading.", file=sys.stderr)
+
 
 try:
     import requests
 except Exception:
     requests = None  # optional; only required for --check-head
-
-import os
-from pathlib import Path
 
 
 def replace_last_number(url: str, n: int, width: Optional[int] = None) -> str:
@@ -114,9 +119,6 @@ def head_check(url: str, timeout: float = 6.0) -> int:
             return r.status_code
         except Exception:
             return 0
-
-
-
 
 
 def generate_image_playwright(
@@ -232,16 +234,41 @@ def generate_image_playwright(
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    # Load defaults from env
+    env_base_url_template = os.getenv("BASE_URL_TEMPLATE")
+    env_default_grade = os.getenv("DEFAULT_GRADE")
+    env_start = os.getenv("START_PAGE")
+    env_end = os.getenv("END_PAGE")
+    env_count = os.getenv("COUNT")
+    env_out_dir = os.getenv("OUTPUT_DIR", "imgs")
+    env_img_format = os.getenv("IMG_FORMAT", "png")
+
+    # Construct default URL if possible
+    default_url = None
+    if env_base_url_template:
+        try:
+            # If we represent grade in the template, utilize it.
+            # Example: https://.../{grade}/page{page:04d}.xhtml
+            # We partially format it to inject the grade, leaving {page} for later.
+            # However, standard python format() might complain about unused keys or missing {page} arg if we don't be careful.
+            # So we use a simple replace if {grade} exists.
+            if "{grade}" in env_base_url_template and env_default_grade:
+                default_url = env_base_url_template.replace("{grade}", env_default_grade)
+            else:
+                default_url = env_base_url_template
+        except Exception:
+             pass
+
     p = argparse.ArgumentParser(description="Generate iterated page URLs and export to images")
-    p.add_argument("url", help="Template URL or URL containing a numeric page to replace")
-    p.add_argument("--start", "-s", type=int, default=None, help="Start page (default: value found in URL or 1)")
-    p.add_argument("--end", "-e", type=int, help="End page (inclusive)")
-    p.add_argument("--count", "-c", type=int, help="Number of pages to generate")
+    p.add_argument("url", nargs="?", default=default_url, help="Template URL or URL containing a numeric page to replace")
+    p.add_argument("--start", "-s", type=int, default=int(env_start) if env_start else None, help="Start page (default: value found in URL or 1)")
+    p.add_argument("--end", "-e", type=int, default=int(env_end) if env_end else None, help="End page (inclusive)")
+    p.add_argument("--count", "-c", type=int, default=int(env_count) if env_count else None, help="Number of pages to generate")
     p.add_argument("--print-only", action="store_true", help="Only print URLs (default)")
     p.add_argument("--check-head", action="store_true", help="Perform HEAD request and print status codes (requires requests)")
     p.add_argument("--limit", "-l", type=int, help="Stop early after this many URLs printed/generated")
-    p.add_argument("--out-dir", type=str, default="imgs", help="Output directory for generated images")
-    p.add_argument("--img-format", type=str, default="png", choices=["png","jpeg"], help="Image format (PNG or JPEG)")
+    p.add_argument("--out-dir", type=str, default=env_out_dir, help="Output directory for generated images")
+    p.add_argument("--img-format", type=str, default=env_img_format, choices=["png","jpeg"], help="Image format (PNG or JPEG)")
     p.add_argument("--img-prefix", type=str, default="page", help="Filename prefix for generated images")
     p.add_argument("--clip-padding", type=int, default=0, help="Add padding in pixels around clipped content")
     p.add_argument("--img-fullpage", action="store_true", help="Capture full page instead of clipping to content")
@@ -253,6 +280,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     args = p.parse_args(argv)
 
+    if not args.url:
+        # Check if we tried to load from env but failed
+        if not env_base_url_template:
+            print("Error: BASE_URL_TEMPLATE not found in environment (check .env file).", file=sys.stderr)
+        if not env_default_grade:
+            print("Error: DEFAULT_GRADE not found in environment (check .env file).", file=sys.stderr)
+            
+        p.error("URL is required. Provide it as an argument or ensure .env is configured correctly.")
+        return 1
+        
     url = args.url
 
     # try to deduce start from URL's last number if present
