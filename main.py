@@ -253,8 +253,22 @@ def generate_image_playwright(
             # Wait a bit for dynamic content
             time.sleep(1)
 
-            # Try to detect background-image on supplied selector (or fallback to body)
-            selector = page_selector or '#PageContainer3'
+            # Dynamically detect the PageContainer (e.g., #PageContainer39, #PageContainer40, etc.)
+            if page_selector:
+                selector = page_selector
+            else:
+                # Try to find PageContainer with any number
+                detected_selector = page.evaluate(
+                    """
+                    () => {
+                        // Look for PageContainer with any number
+                        const container = document.querySelector('[id^="PageContainer"]');
+                        return container ? `#${container.id}` : null;
+                    }
+                    """
+                )
+                selector = detected_selector or '#PageContainer3'  # Fallback to old default
+            
             bg_info = page.evaluate(
                 f"""
                 () => {{
@@ -278,9 +292,9 @@ def generate_image_playwright(
                 page.add_style_tag(
                     content=f"""
                     html, body {{ margin: 0 !important; padding: 0 !important; background: #ffffff !important; }}
-                    img {{ max-width: 100% !important; height: auto !important; display: block !important; margin: 0 auto !important; }}
+                    img {{ display: block !important; }}
                     .content-wrapper, main, article {{ width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: #ffffff !important; }}
-                    {selector} {{ background-position: center !important; background-repeat: no-repeat !important; background-size: contain !important; }}
+                    {selector} {{ background-position: top left !important; background-repeat: no-repeat !important; background-size: contain !important; }}
                     """
                 )
 
