@@ -269,62 +269,31 @@ def generate_image_playwright(
                 )
                 selector = detected_selector or '#PageContainer3'  # Fallback to old default
             
-            bg_info = page.evaluate(
-                f"""
-                () => {{
-                    const el = document.querySelector('{selector}') || document.body;
-                    if (!el) return null;
-                    const style = window.getComputedStyle(el);
-                    return {{
-                        hasEl: !!document.querySelector('{selector}'),
-                        backgroundImage: style.backgroundImage || null,
-                        width: el.getBoundingClientRect().width,
-                        height: el.getBoundingClientRect().height,
-                        x: el.getBoundingClientRect().x,
-                        y: el.getBoundingClientRect().y
-                    }};
-                }}
-                """
-            )
-
-            # Inject CSS to ensure white page background fallback and proper image scaling
+            # Inject CSS to ensure white page background fallback
             if inject_css:
                 page.add_style_tag(
                     content=f"""
                     html, body {{ margin: 0 !important; padding: 0 !important; background: #ffffff !important; }}
-                    img {{ display: block !important; }}
-                    .content-wrapper, main, article {{ width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: #ffffff !important; }}
-                    {selector} {{ background-position: top left !important; background-repeat: no-repeat !important; background-size: contain !important; }}
                     """
                 )
 
-            # If there is a background image on PageContainer3, ensure it is preserved and sized to cover the element
+            # Wait a bit more for all assets to settle
+            time.sleep(2)
+
+            # Get the element's bounding box for clipping
             clip = None
-            if bg_info and bg_info.get("backgroundImage") and bg_info.get("backgroundImage") != 'none':
-                # Extract URL from background-image value
-                bg_url = None
-                m = None
-                try:
-                    import re as _re
-
-                    m = _re.search(r'url\((?:"|\')?(.*?)(?:"|\')?\)', bg_info["backgroundImage"])
-                except Exception:
-                    m = None
-                if m:
-                    bg_url = m.group(1)
-
-                if bg_url and inject_css:
-                    # Force the background-image explicitly and make it cover the element
-                    page.add_style_tag(content=f"{selector} {{ background-image: url('{bg_url}') !important; background-size: cover !important; background-color: #ffffff !important; }}")
-
-                # Clip to the element's bounding box so screenshot contains only the page
+            if not full_page:
                 try:
                     box = page.locator(selector).bounding_box()
                     if box:
-                        # bounding_box values can be float; convert to ints
-                        clip = {"x": int(box["x"]), "y": int(box["y"]), "width": int(box["width"]), "height": int(box["height"]) }
-                except Exception:
-                    clip = None
+                        clip = {
+                            "x": int(box["x"]),
+                            "y": int(box["y"]),
+                            "width": int(box["width"]),
+                            "height": int(box["height"])
+                        }
+                except Exception as e:
+                    print(f"Warning: Could not get bounding box for {selector}: {e}")
 
             # Take screenshot
             screenshot_args = {
