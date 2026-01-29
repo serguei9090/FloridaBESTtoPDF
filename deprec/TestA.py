@@ -188,23 +188,18 @@ def generate_pdf_playwright(url: str, out_path: Path, timeout: int = 30000) -> b
             # Inject CSS to kill the gray background, remove margins, and maximize content
             page.add_style_tag(
                 content="""
-                @page {
-                    size: A4;
-                    margin: 0;
-                }
+                @page { size: A4; margin: 0; }
                 html, body {
                     margin: 0 !important;
                     padding: 0 !important;
-                    background: #ffffff !important;  /* kill the gray */
+                    background: #ffffff !important;
                 }
-                /* Ensure images scale properly */
                 img {
                     max-width: 100% !important;
                     height: auto !important;
                     display: block !important;
                     margin: 0 auto !important;
                 }
-                /* Target specific content containers if needed */
                 .content-wrapper, main, article {
                     width: 100% !important;
                     max-width: none !important;
@@ -262,9 +257,24 @@ def generate_image_playwright(
             # Inject CSS to remove gray background and margins
             page.add_style_tag(
                 content="""
-                html, body { margin: 0 !important; padding: 0 !important; background: #ffffff !important; }
-                img { max-width: 100% !important; height: auto !important; display: block !important; margin: 0 auto !important; }
-                .content-wrapper, main, article { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: #ffffff !important; }
+                html, body {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: #ffffff !important;
+                }
+                img {
+                    max-width: 100% !important;
+                    height: auto !important;
+                    display: block !important;
+                    margin: 0 auto !important;
+                }
+                .content-wrapper, main, article {
+                    width: 100% !important;
+                    max-width: none !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: #ffffff !important;
+                }
                 """
             )
             page.emulate_media(media="print")
@@ -371,7 +381,8 @@ def main(argv: list[str] | None = None) -> int:
         backend = choose_backend(args.pdf_backend)
         if backend is None:
             print(
-                "No PDF backend available. Install Playwright, WeasyPrint, or wkhtmltopdf, or specify --pdf-backend.",
+                "No PDF backend available. Install Playwright, WeasyPrint, "
+                "or wkhtmltopdf, or specify --pdf-backend.",
                 file=sys.stderr,
             )
             return 3
@@ -437,7 +448,8 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 page_str = str(printed + 1)
 
-            img_name = f"{args.img_prefix}{page_str}.{args.img_format if args.img_format == 'png' else 'jpg'}"
+            fmt = args.img_format if args.img_format == "png" else "jpg"
+            img_name = f"{args.img_prefix}{page_str}.{fmt}"
             img_path = out_dir_path / img_name
             if args.skip_existing and img_path.exists():
                 print(f"Skipping existing {img_path}")

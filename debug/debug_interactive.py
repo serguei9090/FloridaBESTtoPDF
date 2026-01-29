@@ -5,6 +5,7 @@ Opens a visible browser with the same URL, viewport, and CSS injections as the m
 
 import os
 import time
+from pathlib import Path
 
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
@@ -63,7 +64,11 @@ def start_debug(page_num=39):
         print("💉 Injecting CSS...")
         page.add_style_tag(
             content="""
-            html, body { margin: 0 !important; padding: 0 !important; background: #ffffff !important; }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+            }
             """
         )
 

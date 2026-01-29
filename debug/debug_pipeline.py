@@ -130,6 +130,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         try:
             p = int(sys.argv[1])
-        except:
+        except ValueError:
             pass
     run_pipeline(p)

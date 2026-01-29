@@ -279,7 +279,11 @@ def generate_image_playwright(
             if inject_css:
                 page.add_style_tag(
                     content="""
-                    html, body { margin: 0 !important; padding: 0 !important; background: #ffffff !important; }
+                    html, body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: #ffffff !important;
+                    }
                     """
                 )
 
@@ -366,7 +370,8 @@ def main(argv: list[str] | None = None) -> int:
             # If we represent grade in the template, utilize it.
             # Example: https://.../{grade}/page{page:04d}.xhtml
             # We partially format it to inject the grade, leaving {page} for later.
-            # However, standard python format() might complain about unused keys or missing {page} arg if we don't be careful.
+            # However, standard python format() might complain about unused keys
+            # or missing {page} arg if we don't be careful.
             # So we use a simple replace if {grade} exists.
             if "{grade}" in env_base_url_template and env_default_grade:
                 default_url = env_base_url_template.replace("{grade}", env_default_grade)
@@ -489,7 +494,7 @@ def main(argv: list[str] | None = None) -> int:
     out_dir_path = None
     if not args.print_only:
         try:
-            from playwright.sync_api import sync_playwright  # type: ignore
+            import playwright.sync_api  # noqa: F401
         except ImportError:
             print(
                 "Playwright is required for image export. Install playwright and browsers.",
