@@ -21,20 +21,19 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from typing import Iterator, Optional
+from collections.abc import Iterator
 
 try:
     import requests
 except Exception:
     requests = None  # optional; only required for --check-head
 
-import os
 import shutil
 import subprocess
 from pathlib import Path
 
 
-def replace_last_number(url: str, n: int, width: Optional[int] = None) -> str:
+def replace_last_number(url: str, n: int, width: int | None = None) -> str:
     """Replace the last contiguous digit-sequence in `url` with n, zero-padded.
 
     If width is None, the width is taken from the length of that digit sequence.
@@ -51,7 +50,7 @@ def replace_last_number(url: str, n: int, width: Optional[int] = None) -> str:
 
 
 def generate_urls(
-    template_url: str, start: int, end: Optional[int] = None, count: Optional[int] = None
+    template_url: str, start: int, end: int | None = None, count: int | None = None
 ) -> Iterator[str]:
     """Generate URLs from start to end (inclusive) or start..start+count-1.
 
@@ -127,15 +126,11 @@ def pdf_backend_available(backend: str) -> bool:
     backend = backend.lower()
     if backend == "playwright":
         try:
-            import playwright  # type: ignore
-
             return True
         except Exception:
             return False
     if backend == "weasyprint":
         try:
-            import weasyprint  # type: ignore
-
             return True
         except Exception:
             return False
@@ -144,7 +139,7 @@ def pdf_backend_available(backend: str) -> bool:
     return False
 
 
-def choose_backend(preferred: str = "auto") -> Optional[str]:
+def choose_backend(preferred: str = "auto") -> str | None:
     if preferred != "auto":
         return preferred if pdf_backend_available(preferred) else None
     # auto: prefer playwright, then weasyprint, then wkhtmltopdf
@@ -175,8 +170,9 @@ def generate_pdf_weasyprint(url: str, out_path: Path) -> bool:
 
 def generate_pdf_playwright(url: str, out_path: Path, timeout: int = 30000) -> bool:
     try:
-        from playwright.sync_api import sync_playwright
         import time
+
+        from playwright.sync_api import sync_playwright
 
         with sync_playwright() as pw:
             browser = pw.chromium.launch(
@@ -226,8 +222,8 @@ def generate_pdf_playwright(url: str, out_path: Path, timeout: int = 30000) -> b
 
             page.pdf(
                 path=str(out_path),
-                width="210mm",    # A4 width
-                height="297mm",   # A4 height
+                width="210mm",  # A4 width
+                height="297mm",  # A4 height
                 print_background=True,
                 prefer_css_page_size=False,  # use the width/height above
                 scale=1.0,
@@ -236,7 +232,7 @@ def generate_pdf_playwright(url: str, out_path: Path, timeout: int = 30000) -> b
                     "bottom": "0mm",
                     "left": "0mm",
                     "right": "0mm",
-                }
+                },
             )
             browser.close()
         return True
@@ -245,11 +241,14 @@ def generate_pdf_playwright(url: str, out_path: Path, timeout: int = 30000) -> b
         return False
 
 
-def generate_image_playwright(url: str, out_path: Path, img_format: str = "png", timeout: int = 30000) -> bool:
+def generate_image_playwright(
+    url: str, out_path: Path, img_format: str = "png", timeout: int = 30000
+) -> bool:
     """Render page to image using Playwright. img_format: 'png' or 'jpeg'."""
     try:
-        from playwright.sync_api import sync_playwright
         import time
+
+        from playwright.sync_api import sync_playwright
 
         with sync_playwright() as pw:
             browser = pw.chromium.launch(args=["--force-color-profile=srgb"])
@@ -286,23 +285,62 @@ def generate_image_playwright(url: str, out_path: Path, img_format: str = "png",
         return False
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Generate iterated page URLs")
     p.add_argument("url", help="Template URL or URL containing a numeric page to replace")
-    p.add_argument("--start", "-s", type=int, default=None, help="Start page (default: value found in URL or 1)")
+    p.add_argument(
+        "--start",
+        "-s",
+        type=int,
+        default=None,
+        help="Start page (default: value found in URL or 1)",
+    )
     p.add_argument("--end", "-e", type=int, help="End page (inclusive)")
     p.add_argument("--count", "-c", type=int, help="Number of pages to generate")
     p.add_argument("--print-only", action="store_true", help="Only print URLs (default)")
-    p.add_argument("--check-head", action="store_true", help="Perform HEAD request and print status codes (requires requests)")
-    p.add_argument("--limit", "-l", type=int, help="Stop early after this many URLs printed/generated")
-    p.add_argument("--to-pdf", action="store_true", help="Render each page to PDF using available backend")
-    p.add_argument("--out-dir", type=str, default="pdfs", help="Output directory for generated PDFs")
-    p.add_argument("--to-png", action="store_true", help="Render each page to an image (PNG/JPEG) using Playwright")
-    p.add_argument("--img-format", type=str, default="png", choices=["png","jpeg"], help="Image format when using --to-png")
-    p.add_argument("--img-prefix", type=str, default="page", help="Filename prefix for generated images")
-    p.add_argument("--pdf-backend", type=str, default="auto", help="PDF backend: auto, playwright, weasyprint, wkhtmltopdf")
-    p.add_argument("--pdf-prefix", type=str, default="page", help="Filename prefix for generated PDFs")
-    p.add_argument("--skip-existing", action="store_true", help="Skip PDF creation when output file already exists")
+    p.add_argument(
+        "--check-head",
+        action="store_true",
+        help="Perform HEAD request and print status codes (requires requests)",
+    )
+    p.add_argument(
+        "--limit", "-l", type=int, help="Stop early after this many URLs printed/generated"
+    )
+    p.add_argument(
+        "--to-pdf", action="store_true", help="Render each page to PDF using available backend"
+    )
+    p.add_argument(
+        "--out-dir", type=str, default="pdfs", help="Output directory for generated PDFs"
+    )
+    p.add_argument(
+        "--to-png",
+        action="store_true",
+        help="Render each page to an image (PNG/JPEG) using Playwright",
+    )
+    p.add_argument(
+        "--img-format",
+        type=str,
+        default="png",
+        choices=["png", "jpeg"],
+        help="Image format when using --to-png",
+    )
+    p.add_argument(
+        "--img-prefix", type=str, default="page", help="Filename prefix for generated images"
+    )
+    p.add_argument(
+        "--pdf-backend",
+        type=str,
+        default="auto",
+        help="PDF backend: auto, playwright, weasyprint, wkhtmltopdf",
+    )
+    p.add_argument(
+        "--pdf-prefix", type=str, default="page", help="Filename prefix for generated PDFs"
+    )
+    p.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip PDF creation when output file already exists",
+    )
     args = p.parse_args(argv)
 
     url = args.url
@@ -343,7 +381,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.to_png:
         # require Playwright for PNG export
         if not pdf_backend_available("playwright"):
-            print("Playwright backend required for --to-png. Install playwright and browsers.", file=sys.stderr)
+            print(
+                "Playwright backend required for --to-png. Install playwright and browsers.",
+                file=sys.stderr,
+            )
             return 4
         # ensure out dir exists
         out_dir_path = Path(args.out_dir)
@@ -396,7 +437,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             else:
                 page_str = str(printed + 1)
 
-            img_name = f"{args.img_prefix}{page_str}.{args.img_format if args.img_format=='png' else 'jpg'}"
+            img_name = f"{args.img_prefix}{page_str}.{args.img_format if args.img_format == 'png' else 'jpg'}"
             img_path = out_dir_path / img_name
             if args.skip_existing and img_path.exists():
                 print(f"Skipping existing {img_path}")

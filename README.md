@@ -6,14 +6,11 @@ A set of utilities to extract pages from Florida B.E.S.T. educational materials 
 
 - **Smart Image Extraction (`main.py`)**: 
   - Captures high-quality screenshots of textbook pages.
+  - **Dynamic Container Detection**: Automatically finds the correct page content container (e.g., `#PageContainer39`, `#PageContainer40`) for every page.
   - Automatically handles dynamic numbering (e.g., `page0001.xhtml`).
-  - Removes gray backgrounds and ensures proper scaling.
-  - Clips specific content containers (e.g., `#PageContainer3`) to avoid capturing empty margins.
+  - Ensures proper scaling and high-fidelity layout capture.
   - Configurable via `.env` file or command-line arguments.
-
-- **PDF/Image Conversion (`TestA.py`)**: 
-  - Converts URLs to PDF using multiple backends: **Playwright**, **WeasyPrint**, or **wkhtmltopdf**.
-  - Can also generate full-page screenshots.
+  - Supports dual PDF generation (Color and Black & White) simultaneously.
 
 ## 🛠️ Prerequisites
 
@@ -122,11 +119,49 @@ uv run main.py "https://bim.easyaccessmaterials.com/programs/fl2023/grade2/page0
 - `--start <N>`: Start page number.
 - `--end <N>`: End page number.
 - `--count <N>`: How many pages to process.
-- `--out-dir <dir>`: Directory to save images (default: `imgs`).
+- `--out-dir <dir>`: Directory to save images (default: `output/imgs_raw`).
 - `--check-head`: Verify URLs exist before processing.
+- `--disable-css-injection`: Capture raw page rendering without any CSS modifications.
+
+### 🧹 Linting and Formatting (Ruff)
+
+This project uses **Ruff** for high-performance Python linting and formatting.
+
+**Format code:**
+```bash
+uv run ruff format .
+```
+
+**Check for lint errors:**
+```bash
+uv run ruff check .
+```
+
+**Auto-fix lint errors:**
+```bash
+uv run ruff check . --fix
+```
+
+### 🔍 Debugging Tools (`debug/`)
+
+A dedicated `debug/` folder contains specialized scripts for troubleshooting and testing:
+
+- **`debug_interactive.py`**: Opens a visible browser window with the same CSS and settings as `main.py` for manual inspection.
+- **`debug_pipeline.py`**: Runs the complete capture and PDF generation pipeline for a single page using the most stable "raw" capture method.
+- **`debug_raw_capture.py`**: Quickly captures a specific page container without any modifications to verify raw layout.
+
+To run a debug script:
+```bash
+uv run python debug/debug_pipeline.py 39
+```
+
+Debug outputs are saved inside `debug/debug_output/` and `debug/output_debug/`.
 
 ## 📁 File Structure
 
-- `main.py`: Main Utility - Advanced image extraction with smart clipping.
-- `.env`: Configuration file for defaults.
-- `deprec/`: Deprecated utilities (e.g., `TestA.py`).
+- `main.py`: Main Utility - Advanced image extraction with dynamic container detection and dual PDF generation.
+- `.env`: Configuration file for defaults and processing options.
+- `output/`: Main export directory (images, processed files, PDFs).
+- `debug/`: Contained playground for debug scripts and troubleshooting outputs.
+- `deprec/`: Folder for deprecated or experimental scripts.
+- `pyproject.toml`: Project configuration and Ruff settings.

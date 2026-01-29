@@ -11,3 +11,24 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "requests>=2.32.5",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.14",
+]
+
+[tool.ruff]
+# Same as Black.
+line-length = 100
+indent-width = 4
+
+[tool.ruff.lint]
+# Select rules (E: Error, F: Pyflakes, I: Isort, etc.)
+select = ["E", "F", "I", "W", "UP"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
