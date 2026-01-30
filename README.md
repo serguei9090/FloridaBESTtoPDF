@@ -54,6 +54,7 @@ You can configure default settings using a `.env` file to avoid typing long URLs
     DEFAULT_GRADE=gradek
     START_PAGE=1
     COUNT=5
+    Last_Page=802
     
     # Processing options - enable advanced features
     CLEAR_OUTPUT_AT_START=true  # Clean output directories before starting
