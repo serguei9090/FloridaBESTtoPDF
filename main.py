@@ -338,6 +338,7 @@ def main(argv: list[str] | None = None) -> int:
     env_default_grade = os.getenv("DEFAULT_GRADE")
     env_start = os.getenv("START_PAGE")
     env_end = os.getenv("END_PAGE")
+    env_last_page = os.getenv("LAST_PAGE")
     env_count = os.getenv("COUNT")
     env_img_format = os.getenv("IMG_FORMAT", "png")
 
@@ -400,6 +401,13 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=int(env_end) if env_end else None,
         help="End page (inclusive)",
+    )
+    p.add_argument(
+        "--last-page",
+        "-lp",
+        type=int,
+        default=int(env_last_page) if env_last_page else None,
+        help="Last page (inclusive). Alias for --end.",
     )
     p.add_argument(
         "--count",
@@ -478,12 +486,17 @@ def main(argv: list[str] | None = None) -> int:
     else:
         start = 1
 
-    if args.end is None and args.count is None and args.limit is None:
-        # default to small demo if nothing provided
-        end = start + 9
-    else:
+    # Resolve end page
+    end = None
+    if args.last_page is not None:
+        end = args.last_page
+    elif args.end is not None:
         end = args.end
 
+    if end is None and args.count is None and args.limit is None:
+        # default to small demo if nothing provided
+        end = start + 9
+    
     count = args.count
 
     gen = generate_urls(url, start, end=end, count=count)
